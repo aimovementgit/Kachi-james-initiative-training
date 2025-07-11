@@ -7,7 +7,7 @@ function App() {
   return (
     <>
       <div>
-        <h1>Kachi James Initiative Tarining Form</h1>
+        <h1>Kachi James Initiative Training Form</h1>
       </div>
     </>
   )
