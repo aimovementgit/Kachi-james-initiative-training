@@ -1,11 +1,84 @@
 import { useState } from 'react'
 import './App.css'
+import { Toaster } from 'react-hot-toast';
+import useTrainingStore from './component/useTrainingStore';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const {
+    formData,
+    setFormData,
+    loading,
+    error,
+    registerTrainee,
+    checkUserExists,
+    validateFormData,
+    clearError
+  } = useTrainingStore();
+
+  const [validationErrors, setValidationErrors] = useState({});
+
+  // Handle input changes
+  const handleInputChange = (field, value) => {
+    setFormData({ [field]: value });
+    
+    // Clear validation error for this field when user starts typing
+    if (validationErrors[field]) {
+      setValidationErrors(prev => ({
+        ...prev,
+        [field]: ''
+      }));
+    }
+    
+    // Clear global error
+    if (error) {
+      clearError();
+    }
+  };
+
+  // Handle checkbox changes for arrays (programming languages, frameworks)
+  const handleCheckboxChange = (field, value, checked) => {
+    const currentArray = formData[field] || [];
+    let newArray;
+    
+    if (checked) {
+      newArray = [...currentArray, value];
+    } else {
+      newArray = currentArray.filter(item => item !== value);
+    }
+    
+    setFormData({ [field]: newArray });
+  };
+
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validate form data using store validation
+    const validation = validateFormData(formData);
+    
+    if (!validation.isValid) {
+      setValidationErrors({ general: validation.message });
+      return;
+    }
+
+    // Check if user already exists
+    const userCheck = await checkUserExists(formData.email);
+    if (userCheck.exists) {
+      setValidationErrors({ email: 'A user with this email already exists' });
+      return;
+    }
+
+    // Submit form
+    const result = await registerTrainee(formData);
+    
+    if (result.success) {
+      setValidationErrors({});
+    }
+  };
 
   return (
     <>
+      <Toaster position="top-right" />
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="max-w-4xl mx-auto md:px-4">
           <div className="bg-white rounded-lg shadow-lg p-8">
@@ -18,7 +91,16 @@ function App() {
               </p>
             </div>
 
-            <form className="space-y-6">
+            {/* Global Error Message */}
+            {(error || validationErrors.general) && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-red-600 text-sm">
+                  {error || validationErrors.general}
+                </p>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-6">
               {/* Personal Information Section */}
               <div className="border-b border-gray-200 pb-6">
                 <h2 className="text-xl font-semibold text-gray-800 mb-4">
@@ -31,54 +113,89 @@ function App() {
                     </label>
                     <input
                       type="text"
+                      value={formData.first_name || ''}
+                      onChange={(e) => handleInputChange('first_name', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter your first name"
+                      required
                     />
+                    {validationErrors.first_name && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.first_name}</p>
+                    )}
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Last Name *
                     </label>
                     <input
                       type="text"
+                      value={formData.last_name || ''}
+                      onChange={(e) => handleInputChange('last_name', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter your last name"
+                      required
                     />
+                    {validationErrors.last_name && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.last_name}</p>
+                    )}
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Email Address *
                     </label>
                     <input
                       type="email"
+                      value={formData.email || ''}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="your.email@example.com"
+                      required
                     />
+                    {validationErrors.email && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
+                    )}
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Phone Number *
                     </label>
                     <input
                       type="tel"
+                      value={formData.phone_number || ''}
+                      onChange={(e) => handleInputChange('phone_number', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="+1 (555) 123-4567"
+                      required
                     />
+                    {validationErrors.phone_number && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.phone_number}</p>
+                    )}
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Date of Birth
                     </label>
                     <input
                       type="date"
+                      value={formData.date_of_birth || ''}
+                      onChange={(e) => handleInputChange('date_of_birth', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Gender
                     </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select 
+                      value={formData.gender || ''}
+                      onChange={(e) => handleInputChange('gender', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
                       <option value="">Select Gender</option>
                       <option value="male">Male</option>
                       <option value="female">Female</option>
@@ -86,11 +203,17 @@ function App() {
                       <option value="prefer-not-to-say">Prefer not to say</option>
                     </select>
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Country of Origin *
                     </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select 
+                      value={formData.country_of_origin || ''}
+                      onChange={(e) => handleInputChange('country_of_origin', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
                       <option value="">Select Country</option>
                       <option value="nigeria">Nigeria</option>
                       <option value="ghana">Ghana</option>
@@ -107,35 +230,47 @@ function App() {
                       <option value="other">Other</option>
                     </select>
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       State of Origin *
                     </label>
                     <input
                       type="text"
+                      value={formData.state_of_origin || ''}
+                      onChange={(e) => handleInputChange('state_of_origin', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter your state of origin"
+                      required
                     />
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Local Government Area *
                     </label>
                     <input
                       type="text"
+                      value={formData.local_government_area || ''}
+                      onChange={(e) => handleInputChange('local_government_area', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Enter your local government area"
+                      required
                     />
                   </div>
                 </div>
+                
                 <div className="mt-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Address
+                    Address *
                   </label>
                   <textarea
                     rows="3"
+                    value={formData.address || ''}
+                    onChange={(e) => handleInputChange('address', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Enter your full address"
+                    required
                   ></textarea>
                 </div>
               </div>
@@ -150,7 +285,12 @@ function App() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Highest Level of Education *
                     </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select 
+                      value={formData.highest_level_of_education || ''}
+                      onChange={(e) => handleInputChange('highest_level_of_education', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
                       <option value="">Select Education Level</option>
                       <option value="high-school">High School</option>
                       <option value="associate">Associate Degree</option>
@@ -160,26 +300,33 @@ function App() {
                       <option value="other">Other</option>
                     </select>
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Field of Study
                     </label>
                     <input
                       type="text"
+                      value={formData.field_of_study || ''}
+                      onChange={(e) => handleInputChange('field_of_study', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., Computer Science, Engineering"
                     />
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Institution Name
                     </label>
                     <input
                       type="text"
+                      value={formData.institution_name || ''}
+                      onChange={(e) => handleInputChange('institution_name', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Name of your school/university"
                     />
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Graduation Year
@@ -188,6 +335,8 @@ function App() {
                       type="number"
                       min="1950"
                       max="2030"
+                      value={formData.graduation_year || ''}
+                      onChange={(e) => handleInputChange('graduation_year', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="2023"
                     />
@@ -205,7 +354,12 @@ function App() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Current Employment Status *
                     </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select 
+                      value={formData.employment_status || ''}
+                      onChange={(e) => handleInputChange('employment_status', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
                       <option value="">Select Status</option>
                       <option value="employed">Employed</option>
                       <option value="unemployed">Unemployed</option>
@@ -218,7 +372,11 @@ function App() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Years of Experience in Tech
                     </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select 
+                      value={formData.years_of_experience || ''}
+                      onChange={(e) => handleInputChange('years_of_experience', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
                       <option value="">Select Experience</option>
                       <option value="0">No experience</option>
                       <option value="1">Less than 1 year</option>
@@ -233,6 +391,8 @@ function App() {
                     </label>
                     <input
                       type="text"
+                      value={formData.job_title || ''}
+                      onChange={(e) => handleInputChange('job_title', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., Software Developer, Data Analyst"
                     />
@@ -243,6 +403,8 @@ function App() {
                     </label>
                     <input
                       type="text"
+                      value={formData.company_name || ''}
+                      onChange={(e) => handleInputChange('company_name', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Current or most recent company"
                     />
@@ -260,7 +422,12 @@ function App() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Preferred Training Track *
                     </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select 
+                      value={formData.preferred_training_track || ''}
+                      onChange={(e) => handleInputChange('preferred_training_track', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
                       <option value="">Select Training Track</option>
                       <option value="web-development">Web Development</option>
                       <option value="mobile-development">Mobile Development</option>
@@ -276,7 +443,12 @@ function App() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Training Mode *
                     </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select 
+                      value={formData.training_mode || ''}
+                      onChange={(e) => handleInputChange('training_mode', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    >
                       <option value="">Select Mode</option>
                       <option value="online">Online</option>
                       <option value="in-person">In-Person</option>
@@ -289,6 +461,8 @@ function App() {
                     </label>
                     <input
                       type="date"
+                      value={formData.preferred_start_date || ''}
+                      onChange={(e) => handleInputChange('preferred_start_date', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
@@ -296,7 +470,11 @@ function App() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Training Duration Preference
                     </label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <select 
+                      value={formData.training_duration_preference || ''}
+                      onChange={(e) => handleInputChange('training_duration_preference', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
                       <option value="">Select Duration</option>
                       <option value="3-months">3 Months</option>
                       <option value="6-months">6 Months</option>
@@ -322,6 +500,8 @@ function App() {
                         <label key={lang} className="flex items-center">
                           <input
                             type="checkbox"
+                            checked={formData.programming_languages?.includes(lang) || false}
+                            onChange={(e) => handleCheckboxChange('programming_languages', lang, e.target.checked)}
                             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                           <span className="ml-2 text-sm text-gray-700">{lang}</span>
@@ -338,6 +518,8 @@ function App() {
                         <label key={tech} className="flex items-center">
                           <input
                             type="checkbox"
+                            checked={formData.frameworks_and_technologies?.includes(tech) || false}
+                            onChange={(e) => handleCheckboxChange('frameworks_and_technologies', tech, e.target.checked)}
                             className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                           <span className="ml-2 text-sm text-gray-700">{tech}</span>
@@ -347,8 +529,16 @@ function App() {
                   </div>
                 </div>
               </div>
-              <button type="submit" className="w-full px-4 py-2 bg-blue-500 text-blue-950 rounded-md hover:bg-blue-950 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                Submit
+              <button 
+                type="submit" 
+                disabled={loading}
+                className={`w-full  px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  loading 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700 text-blue-950'
+                }`}
+              >
+                {loading ? 'Submitting...' : 'Submit Application'}
               </button>
             </form>
           </div>
